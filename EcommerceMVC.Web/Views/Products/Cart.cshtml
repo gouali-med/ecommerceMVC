@@ -1,0 +1,156 @@
+@model IEnumerable<EcommerceMVC.Web.Models.CartItem>
+
+@{
+    ViewData["Title"] = "Panier";
+}
+
+<div class="container mt-4">
+    <h1 class="mb-4">Votre Panier</h1>
+
+    @if (!Model.Any())
+    {
+        <div class="text-center py-5">
+            <i class="bi bi-cart-x display-1 text-muted"></i>
+            <h3 class="mt-3">Votre panier est vide</h3>
+            <p class="text-muted">Ajoutez des produits pour commencer vos achats</p>
+            <a asp-action="Index" class="btn btn-primary mt-3">
+                <i class="bi bi-arrow-left"></i> Continuer vos achats
+            </a>
+        </div>
+    }
+    else
+    {
+        <div class="row">
+            <div class="col-lg-8">
+                @foreach (var item in Model)
+                {
+                    <div class="card mb-3 cart-item" data-id="@item.Id">
+                        <div class="row g-0">
+                            <div class="col-md-3">
+                                <img src="@item.ImageUrl" class="img-fluid rounded-start" alt="@item.Name">
+                            </div>
+                            <div class="col-md-9">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <h5 class="card-title">@item.Name</h5>
+                                        <button class="btn btn-link text-danger remove-item">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                    <p class="card-text text-muted">@item.Price.ToString("C")</p>
+                                    <div class="d-flex align-items-center">
+                                        <div class="input-group" style="width: 150px;">
+                                            <button class="btn btn-outline-secondary update-quantity" data-action="decrease">-</button>
+                                            <input type="number" class="form-control text-center quantity-input" value="@item.Quantity" min="1">
+                                            <button class="btn btn-outline-secondary update-quantity" data-action="increase">+</button>
+                                        </div>
+                                        <span class="ms-3 h5 mb-0">@item.Total.ToString("C")</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+            <div class="col-lg-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Résumé de la commande</h5>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Sous-total</span>
+                            <span>@Model.Sum(i => i.Total).ToString("C")</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Livraison</span>
+                            <span>Gratuit</span>
+                        </div>
+                        <hr>
+                        <div class="d-flex justify-content-between mb-3">
+                            <strong>Total</strong>
+                            <strong>@Model.Sum(i => i.Total).ToString("C")</strong>
+                        </div>
+                        <button class="btn btn-primary w-100" id="confirmOrder">
+                            <i class="bi bi-credit-card"></i> Confirmer la commande
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@section Styles {
+    <style>
+        .card {
+            transition: transform 0.2s;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+        }
+        .img-fluid {
+            max-height: 150px;
+            object-fit: cover;
+        }
+        .btn-success {
+            transition: all 0.3s ease;
+        }
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+    </style>
+}
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+            // Supprimer un article
+            $('.remove-item').click(function() {
+                var itemId = $(this).closest('.cart-item').data('id');
+                $.post('/Products/RemoveFromCart/' + itemId, function(response) {
+                    if (response.success) {
+                        location.reload();
+                    }
+                });
+            });
+
+            // Mettre à jour la quantité
+            $('.update-quantity').click(function() {
+                var itemId = $(this).closest('.cart-item').data('id');
+                var input = $(this).closest('.input-group').find('.quantity-input');
+                var currentValue = parseInt(input.val());
+                var action = $(this).data('action');
+
+                if (action === 'increase') {
+                    input.val(currentValue + 1);
+                } else if (action === 'decrease' && currentValue > 1) {
+                    input.val(currentValue - 1);
+                }
+
+                $.post('/Products/UpdateCartQuantity/' + itemId, { quantity: input.val() }, function(response) {
+                    if (response.success) {
+                        location.reload();
+                    }
+                });
+            });
+
+            // Confirmer la commande
+            $('#confirmOrder').click(function() {
+                var button = $(this);
+                button.prop('disabled', true);
+                button.html('<i class="bi bi-hourglass-split"></i> Traitement en cours...');
+
+                $.post('/Products/ConfirmOrder', function(response) {
+                    if (response.success) {
+                        alert('Votre commande a été confirmée avec succès !');
+                        window.location.href = '/';
+                    } else {
+                        alert('Une erreur est survenue lors de la confirmation de la commande.');
+                        button.prop('disabled', false);
+                        button.html('<i class="bi bi-credit-card"></i> Confirmer la commande');
+                    }
+                });
+            });
+        });
+    </script>
+} 
